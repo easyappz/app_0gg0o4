@@ -2,6 +2,11 @@ from rest_framework import serializers
 from .models import Member, Ad
 
 
+class MessageSerializer(serializers.Serializer):
+    message = serializers.CharField()
+    timestamp = serializers.DateTimeField()
+
+
 class MemberPublicSerializer(serializers.ModelSerializer):
     class Meta:
         model = Member
