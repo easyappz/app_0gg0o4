@@ -1,46 +1,290 @@
 openapi: 3.0.3
 info:
-  title: Easyapp API
-  version: 1.0.0
-  description: API documentation for easyapp
+  title: Easyappz Classifieds API
+  version: '1.0.0'
+servers:
+  - url: /
 paths:
-  /api/hello/:
-    get:
-      operationId: api_hello_retrieve
-      description: Get a hello world message
-      tags:
-      - api
-      security:
-      - cookieAuth: []
-      - basicAuth: []
-      - {}
+  /api/auth/register:
+    post:
+      summary: Register a new member
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, email, password]
+              properties:
+                username:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                phone:
+                  type: string
+                password:
+                  type: string
       responses:
-        '200':
+        '201':
+          description: Created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Message'
-          description: ''
+                $ref: '#/components/schemas/Member'
+        '400': { description: Bad Request }
+  /api/auth/login:
+    post:
+      summary: Login and get JWT token
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  member:
+                    $ref: '#/components/schemas/Member'
+        '400': { description: Bad Request }
+  /api/members/me:
+    get:
+      summary: Get current member profile
+      tags: [Members]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Member'
+        '401': { description: Unauthorized }
+    patch:
+      summary: Update current member profile
+      tags: [Members]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                phone:
+                  type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Member'
+        '400': { description: Bad Request }
+        '401': { description: Unauthorized }
+  /api/ads:
+    get:
+      summary: List ads with filters
+      tags: [Ads]
+      parameters:
+        - in: query
+          name: category
+          schema:
+            type: string
+            enum: ['Автомобили', 'Недвижимость']
+        - in: query
+          name: search
+          schema:
+            type: string
+        - in: query
+          name: min_price
+          schema:
+            type: number
+        - in: query
+          name: max_price
+          schema:
+            type: number
+        - in: query
+          name: page
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK (paginated)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAds'
+    post:
+      summary: Create ad
+      tags: [Ads]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdCreateUpdate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ad'
+        '401': { description: Unauthorized }
+  /api/ads/{id}:
+    get:
+      summary: Get ad by id
+      tags: [Ads]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ad'
+        '404': { description: Not Found }
+    patch:
+      summary: Update ad (owner only)
+      tags: [Ads]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdCreateUpdate'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ad'
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not Found }
+    delete:
+      summary: Delete ad (owner only)
+      tags: [Ads]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204': { description: No Content }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not Found }
+  /api/my/ads:
+    get:
+      summary: List current member's ads
+      tags: [Ads]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK (paginated)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAds'
+        '401': { description: Unauthorized }
+
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   schemas:
-    Message:
+    Member:
       type: object
       properties:
-        message:
+        id: { type: integer }
+        username: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        created_at: { type: string, format: date-time }
+    Ad:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        description: { type: string }
+        price: { type: number }
+        category:
           type: string
-          maxLength: 200
-        timestamp:
+          enum: ['Автомобили', 'Недвижимость']
+        condition:
           type: string
-          format: date-time
-          readOnly: true
-      required:
-      - message
-      - timestamp
-  securitySchemes:
-    basicAuth:
-      type: http
-      scheme: basic
-    cookieAuth:
-      type: apiKey
-      in: cookie
-      name: sessionid
+          enum: ['новое', 'б/у']
+        contact_email: { type: string, format: email }
+        contact_phone: { type: string }
+        owner: { $ref: '#/components/schemas/Member' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    AdCreateUpdate:
+      type: object
+      required: [title, description, price, category, condition]
+      properties:
+        title: { type: string }
+        description: { type: string }
+        price: { type: number }
+        category:
+          type: string
+          enum: ['Автомобили', 'Недвижимость']
+        condition:
+          type: string
+          enum: ['новое', 'б/у']
+        contact_email: { type: string, format: email }
+        contact_phone: { type: string }
+    PaginatedAds:
+      type: object
+      properties:
+        count: { type: integer }
+        next: { type: string, nullable: true }
+        previous: { type: string, nullable: true }
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ad'
