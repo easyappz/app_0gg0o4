@@ -69,3 +69,71 @@ class MeView(APIView):
             ser.save()
             return Response(MemberPublicSerializer(request.user).data)
         return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+from django.db.models import Q
+from rest_framework.pagination import PageNumberPagination
+from rest_framework import filters
+from .models import Ad
+from .serializers import AdSerializer, AdUpdateSerializer
+from .permissions import IsAuthenticatedMember, IsOwnerOrReadOnly
+
+
+class AdsListCreateView(generics.ListCreateAPIView):
+    queryset = Ad.objects.select_related('owner').all()
+    serializer_class = AdSerializer
+
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [IsAuthenticatedMember()]
+        return [permissions.AllowAny()]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        category = self.request.query_params.get('category')
+        search = self.request.query_params.get('search')
+        min_price = self.request.query_params.get('min_price')
+        max_price = self.request.query_params.get('max_price')
+        if category:
+            qs = qs.filter(category=category)
+        if search:
+            # simple icontains on title and description (no regex)
+            qs = qs.filter(Q(title__icontains=search) | Q(description__icontains=search))
+        if min_price:
+            try:
+                qs = qs.filter(price__gte=float(min_price))
+            except ValueError:
+                pass
+        if max_price:
+            try:
+                qs = qs.filter(price__lte=float(max_price))
+            except ValueError:
+                pass
+        return qs
+
+    def perform_create(self, serializer):
+        serializer.save()
+
+
+class AdRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Ad.objects.select_related('owner').all()
+    serializer_class = AdSerializer
+    permission_classes = [IsOwnerOrReadOnly]
+
+    def get_permissions(self):
+        if self.request.method in ['PUT', 'PATCH', 'DELETE']:
+            return [IsAuthenticatedMember(), IsOwnerOrReadOnly()]
+        return [permissions.AllowAny()]
+
+    def get_serializer_class(self):
+        if self.request.method in ['PUT', 'PATCH']:
+            return AdUpdateSerializer
+        return AdSerializer
+
+
+class MyAdsListView(generics.ListAPIView):
+    serializer_class = AdSerializer
+    permission_classes = [IsAuthenticatedMember]
+
+    def get_queryset(self):
+        return Ad.objects.select_related('owner').filter(owner=self.request.user)
