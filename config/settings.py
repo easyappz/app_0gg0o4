@@ -71,6 +71,14 @@ INSTALLED_APPS = [
 # REST Framework configuration
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "api.authentication.JWTMemberAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.AllowAny",
+    ],
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 10,
 }
 
 # drf-spectacular configuration
@@ -80,6 +88,10 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
 }
+
+# JWT settings
+JWT_ALGORITHM = "HS256"
+JWT_ACCESS_TTL_SECONDS = 60 * 60 * 24  # 24 hours
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
